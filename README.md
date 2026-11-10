@@ -1,484 +1,182 @@
-<!DOCTYPE html>
-<html lang="ko" class="dark">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 사고 과정 계산기 (AI Reasoning Calculator)</title>
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        ai: {
-                            50: '#f0fdf4',
-                            100: '#dcfce7',
-                            500: '#22c55e',
-                            600: '#16a34a',
-                            700: '#15803d',
-                            900: '#14532d',
-                            dark: '#0f172a',
-                            card: '#1e293b',
-                            border: '#334155'
-                        }
-                    }
-                }
-            }
-        }
-    </script>
-    <!-- FontAwesome for Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.js">
-    <!-- Google Fonts: Inter & Fira Code -->
-    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        body {
-            font-family: 'Inter', sans-serif;
-        }
-        .code-font {
-            font-family: 'Fira Code', monospace;
-        }
-        /* Custom smooth scroll & glowing effects */
-        .glow-effect {
-            box-shadow: 0 0 25px -5px rgba(34, 197, 94, 0.3);
-        }
-        @keyframes pulse-slow {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-        .animate-pulse-slow {
-            animation: pulse-slow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-        }
-    </style>
-</head>
-<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col justify-between selection:bg-green-500 selection:text-white">
+"""
+AI처럼 계산하는 계산기 (표준 라이브러리만 사용)
 
-    <!-- Top Navigation Bar -->
-    <header class="border-b border-slate-800 bg-slate-950/80 backdrop-blur-md sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-            <div class="flex items-center space-x-3">
-                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-green-600 to-emerald-400 flex items-center justify-center shadow-lg shadow-green-900/30">
-                    <i class="fa-solid fa-brain text-white text-lg"></i>
-                </div>
-                <div>
-                    <h1 class="font-bold text-lg tracking-tight bg-gradient-to-r from-white via-slate-200 to-green-400 bg-clip-text text-transparent">
-                        ReasoningCalc <span class="text-xs uppercase px-2 py-0.5 rounded bg-green-500/20 text-green-400 border border-green-500/30 ml-1 font-mono">v1.0.0</span>
-                    </h1>
-                    <p class="text-xs text-slate-400">LLM 사고 과정 시뮬레이터 (Chain-of-Thought)</p>
-                </div>
-            </div>
-            <div class="flex items-center space-x-3">
-                <button onclick="openGitHubModal()" class="inline-flex items-center space-x-2 text-xs font-medium bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 px-3 py-2 rounded-lg transition-colors shadow-sm">
-                    <i class="fa-brands fa-github text-sm"></i>
-                    <span>GitHub 프로젝트 보기</span>
-                </button>
-            </div>
-        </div>
-    </header>
+AI(LLM)가 계산하는 방식을 단순화해서 흉내 냅니다.
+  1) 토큰화      : 숫자를 3자리 단위 조각으로 읽는다
+  2) 직관 모드   : 답을 한 자리씩 '확률적으로' 예측한다 (틀릴 수 있음)
+  3) 단계별 모드 : 풀이 과정을 적어 가며 정확하게 계산한다
 
-    <!-- Main Content Area -->
-    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-        
-        <!-- Left Column: Calculator Input & Pad (5 cols) -->
-        <section class="lg:col-span-5 space-y-6">
-            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl glow-effect">
-                <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-sm font-semibold uppercase tracking-wider text-green-400 flex items-center gap-2">
-                        <i class="fa-solid fa-terminal"></i> 프롬프트 입력창
-                    </h2>
-                    <span class="text-xs text-slate-400 font-mono">Tokens: <span id="token-count">0</span></span>
-                </div>
+실행: python ai_calculator.py
+"""
 
-                <!-- Expression Input Screen -->
-                <div class="relative mb-4">
-                    <input type="text" id="calc-input" placeholder="예: 25 * 4 + 120 / 3 또는 (50 + 25) * 2" 
-                           class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-4 text-xl code-font text-white placeholder-slate-600 focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition-all shadow-inner"
-                           onkeydown="handleKeydown(event)" autocomplete="off">
-                    <button onclick="clearInput()" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 p-2">
-                        <i class="fa-solid fa-xmark text-lg"></i>
-                    </button>
-                </div>
+import random
 
-                <!-- Quick Examples Pills -->
-                <div class="mb-5">
-                    <p class="text-xs text-slate-400 mb-2 font-medium">추천 프롬프트 예시:</p>
-                    <div class="flex flex-wrap gap-2">
-                        <button onclick="setPrompt('150 + 25 * 4 - 30')" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 px-2.5 py-1.5 rounded-lg transition-colors font-mono">150 + 25 * 4 - 30</button>
-                        <button onclick="setPrompt('(120 + 80) / (5 * 2)')" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 px-2.5 py-1.5 rounded-lg transition-colors font-mono">(120+80)/(5*2)</button>
-                        <button onclick="setPrompt('45 * 12 + 360 / 6')" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 px-2.5 py-1.5 rounded-lg transition-colors font-mono">45 * 12 + 360 / 6</button>
-                        <button onclick="setPrompt('2 ^ 8 + 1024 / 2')" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 px-2.5 py-1.5 rounded-lg transition-colors font-mono">2 ^ 8 + 1024 / 2</button>
-                    </div>
-                </div>
+PLACES = ["일", "십", "백", "천", "만", "십만", "백만", "천만"]
 
-                <!-- Custom Keypad Grid -->
-                <div class="grid grid-cols-4 gap-2 mb-6">
-                    <button onclick="appendValue('(')" class="bg-slate-800 hover:bg-slate-700 active:bg-slate-600 text-slate-300 py-3 rounded-xl font-mono font-bold transition-all border border-slate-700/50">(</button>
-                    <button onclick="appendValue(')')" class="bg-slate-800 hover:bg-slate-700 active:bg-slate-600 text-slate-300 py-3 rounded-xl font-mono font-bold transition-all border border-slate-700/50">)</button>
-                    <button onclick="appendValue(' ^ ')" class="bg-slate-800 hover:bg-slate-700 active:bg-slate-600 text-slate-300 py-3 rounded-xl font-mono font-bold transition-all border border-slate-700/50">^</button>
-                    <button onclick="appendValue(' / ')" class="bg-slate-800 hover:bg-slate-700 active:bg-slate-600 text-green-400 py-3 rounded-xl font-mono font-bold transition-all border border-slate-700/50">÷</button>
-                    
-                    <button onclick="appendValue('7')" class="bg-slate-800/60 hover:bg-slate-700 text-white py-3.5 rounded-xl font-mono font-semibold transition-all border border-slate-700/30">7</button>
-                    <button onclick="appendValue('8')" class="bg-slate-800/60 hover:bg-slate-700 text-white py-3.5 rounded-xl font-mono font-semibold transition-all border border-slate-700/30">8</button>
-                    <button onclick="appendValue('9')" class="bg-slate-800/60 hover:bg-slate-700 text-white py-3.5 rounded-xl font-mono font-semibold transition-all border border-slate-700/30">9</button>
-                    <button onclick="appendValue(' * ')" class="bg-slate-800 hover:bg-slate-700 active:bg-slate-600 text-green-400 py-3 rounded-xl font-mono font-bold transition-all border border-slate-700/50">×</button>
-                    
-                    <button onclick="appendValue('4')" class="bg-slate-800/60 hover:bg-slate-700 text-white py-3.5 rounded-xl font-mono font-semibold transition-all border border-slate-700/30">4</button>
-                    <button onclick="appendValue('5')" class="bg-slate-800/60 hover:bg-slate-700 text-white py-3.5 rounded-xl font-mono font-semibold transition-all border border-slate-700/30">5</button>
-                    <button onclick="appendValue('6')" class="bg-slate-800/60 hover:bg-slate-700 text-white py-3.5 rounded-xl font-mono font-semibold transition-all border border-slate-700/30">6</button>
-                    <button onclick="appendValue(' - ')" class="bg-slate-800 hover:bg-slate-700 active:bg-slate-600 text-green-400 py-3 rounded-xl font-mono font-bold transition-all border border-slate-700/50">-</button>
-                    
-                    <button onclick="appendValue('1')" class="bg-slate-800/60 hover:bg-slate-700 text-white py-3.5 rounded-xl font-mono font-semibold transition-all border border-slate-700/30">1</button>
-                    <button onclick="appendValue('2')" class="bg-slate-800/60 hover:bg-slate-700 text-white py-3.5 rounded-xl font-mono font-semibold transition-all border border-slate-700/30">2</button>
-                    <button onclick="appendValue('3')" class="bg-slate-800/60 hover:bg-slate-700 text-white py-3.5 rounded-xl font-mono font-semibold transition-all border border-slate-700/30">3</button>
-                    <button onclick="appendValue(' + ')" class="bg-slate-800 hover:bg-slate-700 active:bg-slate-600 text-green-400 py-3 rounded-xl font-mono font-bold transition-all border border-slate-700/50">+</button>
-                    
-                    <button onclick="appendValue('0')" class="col-span-2 bg-slate-800/60 hover:bg-slate-700 text-white py-3.5 rounded-xl font-mono font-semibold transition-all border border-slate-700/30">0</button>
-                    <button onclick="appendValue('.')" class="bg-slate-800/60 hover:bg-slate-700 text-white py-3.5 rounded-xl font-mono font-semibold transition-all border border-slate-700/30">.</button>
-                    <button onclick="backspace()" class="bg-slate-800 hover:bg-slate-700 text-amber-400 py-3.5 rounded-xl font-mono transition-all border border-slate-700/50"><i class="fa-solid fa-delete-left"></i></button>
-                </div>
 
-                <!-- Execution Trigger Button -->
-                <button onclick="runAICalculation()" id="compute-btn" class="w-full bg-gradient-to-r from-green-600 to-emerald-500 hover:from-green-500 hover:to-emerald-400 text-slate-950 font-bold py-4 rounded-xl shadow-lg shadow-green-900/40 transition-all transform active:scale-[0.99] flex items-center justify-center space-x-2">
-                    <i class="fa-solid fa-microchip text-lg"></i>
-                    <span>AI 추론 및 계산 시작 (Chain of Thought)</span>
-                </button>
-            </div>
+# ---------- 1) 토큰화 ----------
+def tokenize(n: int) -> list[str]:
+    s = str(n)
+    return [s[i:i + 3] for i in range(0, len(s), 3)]
 
-            <!-- Parameters Card -->
-            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg">
-                <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-2">
-                    <i class="fa-solid fa-sliders"></i> LLM 시뮬레이션 설정
-                </h3>
-                <div class="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                        <label class="block text-xs text-slate-400 mb-1">사고 속도 (Thinking Speed)</label>
-                        <select id="sim-speed" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-slate-300 focus:outline-none focus:border-green-500">
-                            <option value="400">보통 (Standard - 400ms)</option>
-                            <option value="200">빠름 (Fast - 200ms)</option>
-                            <option value="800">느림 / 상세 (Detailed - 800ms)</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs text-slate-400 mb-1">페르소나 (Persona)</label>
-                        <select id="ai-persona" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-slate-300 focus:outline-none focus:border-green-500">
-                            <option value="analyst">철저한 수학 분석가 (Analytical)</option>
-                            <option value="friendly">친절한 AI 튜터 (Friendly Tutor)</option>
-                            <option value="hacker">사이버펑크 하커 (Cyberpunk AI)</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-        </section>
 
-        <!-- Right Column: AI Chain of Thought Visualization (7 cols) -->
-        <section class="lg:col-span-7 space-y-6">
-            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl min-h-[580px] flex flex-col justify-between relative overflow-hidden">
-                
-                <!-- Header of Reasoning View -->
-                <div>
-                    <div class="flex items-center justify-between pb-4 border-b border-slate-800 mb-6">
-                        <div class="flex items-center space-x-3">
-                            <div id="ai-status-indicator" class="w-3 h-3 rounded-full bg-slate-600 animate-pulse"></div>
-                            <h2 class="font-semibold text-sm tracking-wide uppercase text-slate-300">AI 사고 과정 (Chain-of-Thought Stream)</h2>
-                        </div>
-                        <div class="flex items-center space-x-2 text-xs text-slate-400 font-mono">
-                            <span id="elapsed-time">0.0s</span> 소요됨
-                        </div>
-                    </div>
+# ---------- 정답 계산 ----------
+def exact(a: int, b: int, op: str):
+    if op == "+":
+        return a + b
+    if op == "-":
+        return a - b
+    if op == "*":
+        return a * b
+    if op == "/":
+        return None if b == 0 else a // b
+    raise ValueError("지원하지 않는 연산자입니다. (+ - * /)")
 
-                    <!-- Stream Container -->
-                    <div id="thought-container" class="space-y-4 max-h-[420px] overflow-y-auto pr-2 mb-4 scroll-smooth">
-                        <!-- Initial state greeting -->
-                        <div class="text-center py-16 text-slate-500">
-                            <div class="w-16 h-16 rounded-2xl bg-slate-800/50 border border-slate-700/50 flex items-center justify-center mx-auto mb-4 text-slate-400">
-                                <i class="fa-solid fa-wand-magic-sparkles text-2xl"></i>
-                            </div>
-                            <p class="font-medium text-slate-400 mb-1">계산식을 입력하고 AI 추론 버튼을 누르세요.</p>
-                            <p class="text-xs text-slate-600">LLM이 문제를 토큰화하고 연산 순서를 계획하는 과정을 실시간으로 보여줍니다.</p>
-                        </div>
-                    </div>
-                </div>
 
-                <!-- Final Output Box -->
-                <div id="final-output-box" class="mt-4 pt-4 border-t border-slate-800 hidden">
-                    <div class="bg-slate-950 border border-green-500/30 rounded-xl p-4 flex items-center justify-between shadow-lg">
-                        <div>
-                            <span class="text-xs font-semibold text-green-400 uppercase tracking-wider block mb-1">최종 답변 (Final Answer)</span>
-                            <div id="final-result-text" class="text-2xl font-bold code-font text-white">0</div>
-                        </div>
-                        <button onclick="copyResult()" class="bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 px-4 py-2 rounded-lg text-xs font-medium transition-colors flex items-center space-x-2">
-                            <i class="fa-regular fa-copy"></i>
-                            <span>결과 복사</span>
-                        </button>
-                    </div>
-                </div>
+# ---------- 2) 직관 모드 ----------
+def digit_distribution(correct: int, length: int, pos: int) -> list[float]:
+    """자릿수가 많고 뒤쪽 자리일수록 틀릴 확률이 커지도록 단순화한 모형."""
+    err = min(0.6, 0.02 * length ** 1.5 * (0.6 + 0.4 * pos / max(1, length - 1)))
+    probs = [0.0] * 10
+    probs[correct] = 1 - err
+    near = [(correct + 1) % 10, (correct - 1) % 10]
+    others = [d for d in range(10) if d != correct and d not in near]
+    for d in near:
+        probs[d] = err * 0.3
+    for d in others:
+        probs[d] = err * 0.4 / len(others)
+    return probs
 
-            </div>
-        </section>
 
-    </main>
+def intuition_mode(answer: int) -> None:
+    print("\n[② 직관 모드] 한 자리씩 확률로 답을 찍습니다")
+    sign = "-" if answer < 0 else ""
+    s = str(abs(answer))
+    guess = ""
+    for i, ch in enumerate(s):
+        probs = digit_distribution(int(ch), len(s), i)
+        g = random.choices(range(10), weights=probs)[0]
+        guess += str(g)
+        top = sorted(range(10), key=lambda d: probs[d], reverse=True)[:3]
+        cand = ", ".join(f"{d}:{probs[d] * 100:.0f}%" for d in top)
+        mark = "O" if g == int(ch) else "X"
+        print(f"  {i + 1}번째 자리 → 선택 {g} [{mark}]  (후보: {cand})")
+    result = int(sign + guess)
+    if result == answer:
+        print(f"  ✅ AI의 직관 답: {result:,} (정답)")
+    else:
+        print(f"  ❌ AI의 직관 답: {result:,} / 실제 정답: {answer:,}")
+        print("     한 자리만 틀려도 전체가 틀립니다. 풀이 과정을 적으면 정확해져요.")
 
-    <!-- Footer -->
-    <footer class="border-t border-slate-800 bg-slate-950 py-6 text-center text-xs text-slate-500">
-        <p>AI Reasoning Calculator Simulator &bull; Built with HTML5, Tailwind CSS, and Vanilla JavaScript for GitHub.</p>
-    </footer>
 
-    <!-- GitHub & Project Guide Modal -->
-    <div id="github-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-2xl w-full p-6 shadow-2xl relative">
-            <button onclick="closeGitHubModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white p-2">
-                <i class="fa-solid fa-xmark text-lg"></i>
-            </button>
-            <div class="flex items-center space-x-3 mb-4">
-                <i class="fa-brands fa-github text-2xl text-white"></i>
-                <h3 class="text-lg font-bold text-white">GitHub 저장소 구조 안내</h3>
-            </div>
-            <p class="text-sm text-slate-300 mb-4">
-                이 프로젝트는 GitHub에 곧바로 업로드하여 정적 웹페이지(GitHub Pages)로 배포할 수 있도록 구조화되어 있습니다.
-            </p>
-            <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 font-mono text-xs text-slate-300 mb-6 space-y-1">
-                <p class="text-green-400 font-bold">📂 ai-reasoning-calculator/</p>
-                <p class="pl-4">├── 📄 index.html <span class="text-slate-500">(메인 UI 및 인터랙션)</span></p>
-                <p class="pl-4">├── 🎨 style.css <span class="text-slate-500">(커스텀 스타일 및 애니메이션)</span></p>
-                <p class="pl-4">├── ⚡ script.js <span class="text-slate-500">(AI 사고 과정 파서 및 계산 엔진)</span></p>
-                <p class="pl-4">└── 📖 README.md <span class="text-slate-500">(프로젝트 설명서)</span></p>
-            </div>
-            <div class="flex justify-end">
-                <button onclick="downloadRepositoryZip()" class="bg-green-600 hover:bg-green-500 text-slate-950 font-bold px-4 py-2.5 rounded-xl text-xs transition-colors flex items-center space-x-2">
-                    <i class="fa-solid fa-download"></i>
-                    <span>프로젝트 파일 구조 코드 확인</span>
-                </button>
-            </div>
-        </div>
-    </div>
+# ---------- 3) 단계별 풀이 모드 ----------
+def add_steps(a: int, b: int) -> list[str]:
+    A, B = str(a)[::-1], str(b)[::-1]
+    steps, carry = [], 0
+    for i in range(max(len(A), len(B))):
+        x = int(A[i]) if i < len(A) else 0
+        y = int(B[i]) if i < len(B) else 0
+        s = x + y + carry
+        extra = f" + 올림 {carry}" if carry else ""
+        steps.append(f"{PLACES[i]}의 자리: {x} + {y}{extra} = {s} → {s % 10} 쓰고 "
+                     f"{'1 올림' if s >= 10 else '올림 없음'}")
+        carry = 1 if s >= 10 else 0
+    if carry:
+        steps.append("남은 올림 1 → 맨 앞에 씀")
+    return steps
 
-    <!-- Notification Toast -->
-    <div id="toast" class="fixed bottom-6 right-6 bg-slate-900 border border-green-500/40 text-slate-200 px-4 py-3 rounded-xl shadow-2xl z-50 transform translate-y-20 opacity-0 transition-all duration-300 flex items-center space-x-3 text-sm">
-        <i class="fa-solid fa-circle-check text-green-400 text-base"></i>
-        <span id="toast-msg">클립보드에 복사되었습니다.</span>
-    </div>
 
-    <!-- JavaScript Application Engine -->
-    <script>
-        // Live token counter update
-        const inputField = document.getElementById('calc-input');
-        inputField.addEventListener('input', (e) => {
-            const val = e.target.value;
-            // Approximate token count simulation (rough count by words/chars)
-            const tokens = val.trim() === '' ? 0 : Math.max(1, Math.ceil(val.length / 3));
-            document.getElementById('token-count').innerText = tokens;
-        });
+def sub_steps(a: int, b: int) -> list[str]:
+    steps = []
+    if a < b:
+        steps.append("앞 수가 더 작음 → 큰 수에서 작은 수를 빼고 마지막에 − 부호를 붙임")
+        a, b = b, a
+    A, B = str(a)[::-1], str(b)[::-1]
+    borrow = 0
+    for i in range(len(A)):
+        x = int(A[i]) - borrow
+        y = int(B[i]) if i < len(B) else 0
+        if x < y:
+            steps.append(f"{PLACES[i]}의 자리: {x} < {y} → 10 빌려서 {x + 10} - {y} = {x + 10 - y}")
+            borrow = 1
+        else:
+            steps.append(f"{PLACES[i]}의 자리: {x} - {y} = {x - y}")
+            borrow = 0
+    return steps
 
-        function setPrompt(expr) {
-            inputField.value = expr;
-            inputField.dispatchEvent(new Event('input'));
-        }
 
-        function clearInput() {
-            inputField.value = '';
-            inputField.dispatchEvent(new Event('input'));
-            document.getElementById('thought-container').innerHTML = `
-                <div class="text-center py-16 text-slate-500">
-                    <div class="w-16 h-16 rounded-2xl bg-slate-800/50 border border-slate-700/50 flex items-center justify-center mx-auto mb-4 text-slate-400">
-                        <i class="fa-solid fa-wand-magic-sparkles text-2xl"></i>
-                    </div>
-                    <p class="font-medium text-slate-400 mb-1">계산식을 입력하고 AI 추론 버튼을 누르세요.</p>
-                    <p class="text-xs text-slate-600">LLM이 문제를 토큰화하고 연산 순서를 계획하는 과정을 실시간으로 보여줍니다.</p>
-                </div>
-            `;
-            document.getElementById('final-output-box').classList.add('hidden');
-        }
+def mul_steps(a: int, b: int) -> list[str]:
+    steps, total = [], 0
+    for i, d in enumerate(reversed(str(b))):
+        part = a * int(d) * 10 ** i
+        total += part
+        shift = f" (×{10 ** i:,})" if i else ""
+        steps.append(f"{a} × {d}{shift} = {part:,}")
+    steps.append(f"부분 곱을 모두 더하면 → {total:,}")
+    return steps
 
-        function appendValue(val) {
-            inputField.value += val;
-            inputField.dispatchEvent(new Event('input'));
-            inputField.focus();
-        }
 
-        function backspace() {
-            inputField.value = inputField.value.slice(0, -1);
-            inputField.dispatchEvent(new Event('input'));
-            inputField.focus();
-        }
+def div_steps(a: int, b: int) -> list[str]:
+    if b == 0:
+        return ["0으로는 나눌 수 없습니다"]
+    steps, rem, q = [], 0, ""
+    for ch in str(a):
+        cur = rem * 10 + int(ch)
+        d = cur // b
+        steps.append(f"내려쓴 수 {cur} ÷ {b} = 몫 {d}, 나머지 {cur - d * b}")
+        q += str(d)
+        rem = cur - d * b
+    steps.append(f"몫 = {int(q):,}, 나머지 = {rem}")
+    return steps
 
-        function handleKeydown(e) {
-            if (e.key === 'Enter') {
-                runAICalculation();
-            }
-        }
 
-        // Safe mathematical parser supporting operators +, -, *, /, ^ and parentheses
-        function evaluateExpression(expr) {
-            try {
-                // Replace ^ with ** for JS evaluation
-                let sanitized = expr.replace(/\^/g, '**');
-                // Basic validation for security
-                if (!/^[\d\+\-\*\/\(\)\.\s\*]+$/.test(sanitized)) {
-                    throw new Error("유효하지 않은 수식 문자입니다.");
-                }
-                const result = Function('"use strict"; return (' + sanitized + ')')();
-                if (isNaN(result) || !isFinite(result)) throw new Error("계산 불가 수식");
-                return result;
-            } catch (err) {
-                throw new Error("수식 구문 오류 (Syntax Error)");
-            }
-        }
+def step_mode(a: int, b: int, op: str, answer) -> None:
+    print("\n[③ 단계별 풀이 모드] 생각을 적어 가며 계산합니다")
+    fn = {"+": add_steps, "-": sub_steps, "*": mul_steps, "/": div_steps}[op]
+    for line in fn(a, b):
+        print("  ·", line)
+    if answer is not None:
+        print(f"  ✅ 최종 답: {answer:,}")
 
-        // Generate Chain of Thought (CoT) steps for the calculation
-        function generateReasoningSteps(expr, finalResult, persona) {
-            let steps = [];
-            
-            // Step 1: Tokenization & Analysis
-            steps.push({
-                type: 'token',
-                title: '1. 토큰화 및 어휘 분석 (Tokenization)',
-                content: `입력된 프롬프트 "${expr}"을(를) 의미 단위의 토큰으로 분할하고 문맥을 파악합니다.`
-            });
 
-            // Step 2: AST & Operator Precedence (PEMDAS)
-            steps.push({
-                type: 'parse',
-                title: '2. 연산자 우선순위 분석 (Operator Precedence)',
-                content: `수학적 연산 순서(괄호 > 거듭제곱 > 곱셈/나눗셈 > 덧셈/뺄셈)에 따라 실행 계획(AST)을 수립합니다.`
-            });
+# ---------- 메인 ----------
+def parse(text: str):
+    """'478 + 256' 형태의 입력을 (a, op, b)로 변환"""
+    text = text.replace("×", "*").replace("÷", "/").replace("x", "*")
+    for op in "+-*/":
+        # 맨 앞 부호와 구분하기 위해 1번째 글자 이후에서 찾음
+        idx = text.find(op, 1)
+        if idx != -1:
+            a, b = text[:idx].strip(), text[idx + 1:].strip()
+            if a.isdigit() and b.isdigit():
+                return int(a), op, int(b)
+    raise ValueError("형식이 올바르지 않습니다. 예) 478 + 256")
 
-            // Step 3: Step-by-step execution simulation
-            // We can break down if there are multiple operators
-            steps.push({
-                type: 'compute',
-                title: '3. 단계별 사고 및 실행 (Step-by-Step Inference)',
-                content: `연산 순서에 맞춰 중간 단계를 차례대로 평가합니다. 수식 결과 도출 중 오류 검증 완료.`
-            });
 
-            // Persona specific commentary
-            let reflection = "";
-            if (persona === 'analyst') {
-                reflection = `수학적 정밀도 검증 완료. 오차 범위 0. 부동소수점 정밀 계산이 성공적으로 수행되었습니다.`;
-            } else if (persona === 'friendly') {
-                reflection = `와! 차근차근 단계별로 살펴보니 정말 멋진 계산 결과가 나왔네요! 이 과정을 통해 정확한 값을 도출했어요. 😊`;
-            } else {
-                reflection = `[SYSTEM_OVERRIDE]: Neural weights verified. Calculation tensor optimized. Final result compiled successfully.`;
-            }
+def main() -> None:
+    print("=== AI처럼 계산하는 계산기 ===")
+    print("예) 478 + 256 / 1234 * 56   (종료: q)")
+    while True:
+        text = input("\n식 입력 > ").strip()
+        if text.lower() in ("q", "quit", "exit"):
+            print("종료합니다.")
+            break
+        try:
+            a, op, b = parse(text)
+        except ValueError as e:
+            print("  ⚠", e)
+            continue
 
-            steps.push({
-                type: 'reflect',
-                title: '4. 검증 및 최종 결론 도출 (Verification)',
-                content: reflection
-            });
+        print(f"\n[① 토큰화] {tokenize(a)} {op} {tokenize(b)}")
+        print("  AI는 숫자를 한 덩어리가 아니라 이런 조각으로 읽습니다.")
 
-            return steps;
-        }
+        answer = exact(a, b, op)
+        if answer is None:
+            print("  ⚠ 0으로는 나눌 수 없습니다.")
+            continue
+        intuition_mode(answer)
+        step_mode(a, b, op, answer)
 
-        async function runAICalculation() {
-            const rawExpr = inputField.value.trim();
-            if (!rawExpr) {
-                showToast("계산식이나 프롬프트를 입력해주세요!");
-                return;
-            }
 
-            const speed = parseInt(document.getElementById('sim-speed').value);
-            const persona = document.getElementById('ai-persona').value;
-            const container = document.getElementById('thought-container');
-            const statusIndicator = document.getElementById('ai-status-indicator');
-            const finalBox = document.getElementById('final-output-box');
-            const computeBtn = document.getElementById('compute-btn');
-
-            computeBtn.disabled = true;
-            finalBox.classList.add('hidden');
-            container.innerHTML = '';
-            statusIndicator.className = 'w-3 h-3 rounded-full bg-amber-500 animate-ping';
-
-            let startTime = performance.now();
-
-            let numericResult;
-            try {
-                numericResult = evaluateExpression(rawExpr);
-            } catch (err) {
-                container.innerHTML = `
-                    <div class="bg-red-950/40 border border-red-500/40 rounded-xl p-4 text-red-300 text-sm">
-                        <i class="fa-solid fa-triangle-exclamation mr-2"></i> ${err.message}
-                    </div>
-                `;
-                statusIndicator.className = 'w-3 h-3 rounded-full bg-red-500';
-                computeBtn.disabled = false;
-                return;
-            }
-
-            const steps = generateReasoningSteps(rawExpr, numericResult, persona);
-
-            for (let i = 0; i < steps.length; i++) {
-                await new Promise(r => setTimeout(r, speed));
-                
-                const step = steps[i];
-                let iconClass = 'fa-solid fa-brain text-green-400';
-                if (step.type === 'token') iconClass = 'fa-solid fa-code text-cyan-400';
-                if (step.type === 'parse') iconClass = 'fa-solid fa-sitemap text-amber-400';
-                if (step.type === 'compute') iconClass = 'fa-solid fa-calculator text-emerald-400';
-                if (step.type === 'reflect') iconClass = 'fa-solid fa-circle-check text-purple-400';
-
-                const card = document.createElement('div');
-                card.className = 'bg-slate-950/60 border border-slate-800/80 rounded-xl p-4 text-sm animate-fadeIn shadow-sm';
-                card.innerHTML = `
-                    <div class="flex items-center space-x-2 font-semibold text-slate-200 mb-1.5">
-                        <i class="${iconClass}"></i>
-                        <span>${step.title}</span>
-                    </div>
-                    <p class="text-slate-400 text-xs leading-relaxed pl-5 code-font">${step.content}</p>
-                `;
-                container.appendChild(card);
-                container.scrollTop = container.scrollHeight;
-            }
-
-            let endTime = performance.now();
-            let elapsedSec = ((endTime - startTime) / 1000).toFixed(2);
-            document.getElementById('elapsed-time').innerText = `${elapsedSec}s`;
-            statusIndicator.className = 'w-3 h-3 rounded-full bg-green-500';
-
-            // Show final output
-            document.getElementById('final-result-text').innerText = numericResult;
-            finalBox.classList.remove('hidden');
-            computeBtn.disabled = false;
-            container.scrollTop = container.scrollHeight;
-        }
-
-        function copyResult() {
-            const res = document.getElementById('final-result-text').innerText;
-            const textarea = document.createElement('textarea');
-            textarea.value = res;
-            document.body.appendChild(textarea);
-            textarea.select();
-            try {
-                document.execCommand('copy');
-                showToast("결과 값이 클립보드에 복사되었습니다.");
-            } catch (err) {
-                showToast("복사 실패");
-            }
-            document.body.removeChild(textarea);
-        }
-
-        function showToast(msg) {
-            const toast = document.getElementById('toast');
-            document.getElementById('toast-msg').innerText = msg;
-            toast.classList.remove('translate-y-20', 'opacity-0');
-            setTimeout(() => {
-                toast.classList.add('translate-y-20', 'opacity-0');
-            }, 2500);
-        }
-
-        function openGitHubModal() {
-            document.getElementById('github-modal').classList.remove('hidden');
-        }
-
-        function closeGitHubModal() {
-            document.getElementById('github-modal').classList.add('hidden');
-        }
-
-        function downloadRepositoryZip() {
-            showToast("GitHub 저장소 파일 구조 문서화 완료!");
-            closeGitHubModal();
-        }
-    </script>
-</body>
-</html># test1
-test1
+if __name__ == "__main__":
+    main()

@@ -1,3 +1,38 @@
+# 🧠 AI Reasoning Calculator
+
+> **AI 기반의 추론 과정(Chain of Thought)과 단계별 계산 과정을 시각화해 주는 스마트 계산기입니다.**  
+> 단순한 결과 도출을 넘어, 연산이 이루어지는 논리적 단계를 투명하게 보여줍니다.
+
+---
+
+## ✨ 주요 기능 (Key Features)
+
+* **🤖 Chain of Thought (CoT) 추론 시뮬레이션:** 수식이나 논리적 명제를 입력하면 AI가 어떤 논리적 단계를 거쳐 답에 도달했는지 단계별로 분석하고 보여줍니다.
+* **📝 단계별 계산 과정 (Step-by-Step Breakdown):** 복잡한 수식과 연산을 직관적인 단계별 설명과 함께 시각화합니다.
+* **💾 변수 및 메모리 관리 (Variable Memory):** 계산 결과를 변수에 저장하고 재사용할 수 있습니다.
+* **📜 연산 기록(History) 및 로그:** 이전 계산 내역을 기록하고 필요할 때 다시 불러올 수 있습니다.
+* **🎨 VS Code 테마 디자인:** 개발자에게 익숙하고 편안한 VS Code 스타일의 다크 모드 인터페이스를 제공합니다.
+
+---
+
+## 🛠️ 기술 스택 (Tech Stack)
+
+* **Frontend:** HTML5, CSS3, JavaScript (Vanilla JS)
+* **Design/Theme:** VS Code Dark Modern Theme 스타일 UI
+* **Architecture:** Single-File Component (단일 HTML 구조로 가볍고 빠른 실행 가능)
+
+---
+
+## 🚀 빠른 시작 (Getting Started)
+
+별도의 복잡한 빌드 과정 없이, 웹 브라우저나 VS Code 환경에서 바로 실행할 수 있습니다.
+
+### 1. 저장소 클론 (Clone Repository)
+```bash
+git clone [https://github.com/your-username/ai-reasoning-calculator.git](https://github.com/your-username/ai-reasoning-calculator.git)
+cd ai-reasoning-calculator
+
+
 # Mini NPU Simulator
 
 MAC(Multiply-Accumulate) 연산으로 입력 패턴이 어떤 필터(Cross / X)와 더 닮았는지 판정하는 Python 콘솔 프로그램입니다.

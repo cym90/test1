@@ -1,182 +1,55 @@
-"""
-AI처럼 계산하는 계산기 (표준 라이브러리만 사용)
+# Mini NPU Simulator
 
-AI(LLM)가 계산하는 방식을 단순화해서 흉내 냅니다.
-  1) 토큰화      : 숫자를 3자리 단위 조각으로 읽는다
-  2) 직관 모드   : 답을 한 자리씩 '확률적으로' 예측한다 (틀릴 수 있음)
-  3) 단계별 모드 : 풀이 과정을 적어 가며 정확하게 계산한다
+MAC(Multiply-Accumulate) 연산으로 입력 패턴이 어떤 필터(Cross / X)와 더 닮았는지 판정하는 Python 콘솔 프로그램입니다.
 
-실행: python ai_calculator.py
-"""
+## 실행 방법
 
-import random
+```bash
+python main.py
+```
 
-PLACES = ["일", "십", "백", "천", "만", "십만", "백만", "천만"]
+- Python 3.8 이상, 외부 라이브러리 없음 (`json`, `re`, `time`, `os`만 사용)
+- `data.json`은 `main.py`와 같은 폴더에 둡니다.
+- 실행 후 모드를 선택합니다.
+  - `1` : 3×3 필터 A, B와 패턴을 한 줄씩(공백 구분) 입력
+  - `2` : `data.json`의 필터(5×5, 13×13, 25×25)와 패턴을 일괄 판정
 
+## 구현 요약
 
-# ---------- 1) 토큰화 ----------
-def tokenize(n: int) -> list[str]:
-    s = str(n)
-    return [s[i:i + 3] for i in range(0, len(s), 3)]
+- **MAC 연산**: 이중 for문으로 같은 위치끼리 곱해 누적합을 반환합니다 (`mac`). 보너스로 1차원 배열 버전(`mac_flat`)과 Cross/X 패턴 생성기(`make_cross`, `make_x`)를 포함했습니다.
+- **라벨 정규화**: `normalize_label()`이 expected(`+`, `x`)와 필터 키(`cross`, `x`)를 표준 라벨 `Cross` / `X`로 통일합니다. 비교와 출력은 모두 표준 라벨 기준입니다.
+- **동점 정책(epsilon)**: `abs(a - b) < 1e-9`이면 동점으로 보고 `UNDECIDED`(모드 1은 "판정 불가")로 처리합니다. UNDECIDED는 expected와 다르므로 FAIL입니다.
+- **입력 검증**: 모드 1은 행/열 개수와 숫자 파싱을 검사하고, 오류 시 안내 문구 후 처음부터 재입력받습니다.
+- **스키마 검증**: 모드 2는 케이스 단위로 키 형식, 크기 일치, 라벨, 숫자 여부를 검사하며 문제가 있으면 해당 케이스만 FAIL 처리하고 계속 진행합니다.
+- **시간 측정**: `time.perf_counter()`로 연산 함수 호출 구간만 10회 반복 측정해 평균(ms)을 냅니다. I/O 시간은 제외합니다.
 
+## 결과 리포트
 
-# ---------- 정답 계산 ----------
-def exact(a: int, b: int, op: str):
-    if op == "+":
-        return a + b
-    if op == "-":
-        return a - b
-    if op == "*":
-        return a * b
-    if op == "/":
-        return None if b == 0 else a // b
-    raise ValueError("지원하지 않는 연산자입니다. (+ - * /)")
+> 아래 수치와 FAIL 목록은 **본인이 실제 data.json으로 실행한 결과**로 교체하세요.
 
+### 성능 표 (예시 — 본인 측정값으로 교체)
 
-# ---------- 2) 직관 모드 ----------
-def digit_distribution(correct: int, length: int, pos: int) -> list[float]:
-    """자릿수가 많고 뒤쪽 자리일수록 틀릴 확률이 커지도록 단순화한 모형."""
-    err = min(0.6, 0.02 * length ** 1.5 * (0.6 + 0.4 * pos / max(1, length - 1)))
-    probs = [0.0] * 10
-    probs[correct] = 1 - err
-    near = [(correct + 1) % 10, (correct - 1) % 10]
-    others = [d for d in range(10) if d != correct and d not in near]
-    for d in near:
-        probs[d] = err * 0.3
-    for d in others:
-        probs[d] = err * 0.4 / len(others)
-    return probs
+| 크기 | 평균 시간(ms) | 연산 횟수(N²) |
+|------|---------------|---------------|
+| 3×3 | (측정값) | 9 |
+| 5×5 | (측정값) | 25 |
+| 13×13 | (측정값) | 169 |
+| 25×25 | (측정값) | 625 |
 
+### 실패 원인 분석
 
-def intuition_mode(answer: int) -> None:
-    print("\n[② 직관 모드] 한 자리씩 확률로 답을 찍습니다")
-    sign = "-" if answer < 0 else ""
-    s = str(abs(answer))
-    guess = ""
-    for i, ch in enumerate(s):
-        probs = digit_distribution(int(ch), len(s), i)
-        g = random.choices(range(10), weights=probs)[0]
-        guess += str(g)
-        top = sorted(range(10), key=lambda d: probs[d], reverse=True)[:3]
-        cand = ", ".join(f"{d}:{probs[d] * 100:.0f}%" for d in top)
-        mark = "O" if g == int(ch) else "X"
-        print(f"  {i + 1}번째 자리 → 선택 {g} [{mark}]  (후보: {cand})")
-    result = int(sign + guess)
-    if result == answer:
-        print(f"  ✅ AI의 직관 답: {result:,} (정답)")
-    else:
-        print(f"  ❌ AI의 직관 답: {result:,} / 실제 정답: {answer:,}")
-        print("     한 자리만 틀려도 전체가 틀립니다. 풀이 과정을 적으면 정확해져요.")
+1. 실패 케이스는 **데이터/스키마 문제**, **로직 문제**, **수치 비교 문제**로 나누어 진단했습니다.
+2. 데이터/스키마 문제: 필터 키는 `cross`/`x`, expected는 `+`/`x`처럼 표기가 달라 그대로 비교하면 항상 불일치합니다. 그래서 내부 표준 라벨(Cross, X)로 정규화한 뒤 비교했습니다.
+3. 데이터/스키마 문제: 패턴 키의 N(`size_13_1`)과 실제 `input` 크기가 다르면 MAC 연산 자체가 성립하지 않습니다. 이런 케이스는 크기 검증 단계에서 FAIL과 사유를 남기고 프로그램은 계속 실행됩니다.
+4. 수치 비교 문제: 부동소수점은 `0.9`와 `0.8999999999999999`처럼 사실상 같은 값이 미세하게 다르게 저장될 수 있어 `==`나 단순 `>` 비교가 불안정합니다.
+5. 그래서 `abs(a - b) < 1e-9`이면 동점으로 처리하는 epsilon 정책을 적용했습니다. 동점은 UNDECIDED이며 expected와 다르므로 FAIL로 집계됩니다.
+6. 로직 문제: 필터 순서(A/B ↔ Cross/X)를 바꿔 쓰거나 점수 비교 방향을 반대로 쓰면 PASS/FAIL이 뒤집힙니다. 점수가 큰 쪽이 더 유사하다는 기준으로 통일했습니다.
+7. (실행 결과에 맞게 작성) 이번 실행의 FAIL 케이스: `케이스 ID` — `원인`. 만약 FAIL이 0개라면, 라벨 정규화로 표기 차이가 제거되었고 epsilon 정책으로 부동소수점 오차가 동점 판정에 영향을 주지 않았기 때문이라고 적습니다.
 
+### 시간 복잡도 분석
 
-# ---------- 3) 단계별 풀이 모드 ----------
-def add_steps(a: int, b: int) -> list[str]:
-    A, B = str(a)[::-1], str(b)[::-1]
-    steps, carry = [], 0
-    for i in range(max(len(A), len(B))):
-        x = int(A[i]) if i < len(A) else 0
-        y = int(B[i]) if i < len(B) else 0
-        s = x + y + carry
-        extra = f" + 올림 {carry}" if carry else ""
-        steps.append(f"{PLACES[i]}의 자리: {x} + {y}{extra} = {s} → {s % 10} 쓰고 "
-                     f"{'1 올림' if s >= 10 else '올림 없음'}")
-        carry = 1 if s >= 10 else 0
-    if carry:
-        steps.append("남은 올림 1 → 맨 앞에 씀")
-    return steps
-
-
-def sub_steps(a: int, b: int) -> list[str]:
-    steps = []
-    if a < b:
-        steps.append("앞 수가 더 작음 → 큰 수에서 작은 수를 빼고 마지막에 − 부호를 붙임")
-        a, b = b, a
-    A, B = str(a)[::-1], str(b)[::-1]
-    borrow = 0
-    for i in range(len(A)):
-        x = int(A[i]) - borrow
-        y = int(B[i]) if i < len(B) else 0
-        if x < y:
-            steps.append(f"{PLACES[i]}의 자리: {x} < {y} → 10 빌려서 {x + 10} - {y} = {x + 10 - y}")
-            borrow = 1
-        else:
-            steps.append(f"{PLACES[i]}의 자리: {x} - {y} = {x - y}")
-            borrow = 0
-    return steps
-
-
-def mul_steps(a: int, b: int) -> list[str]:
-    steps, total = [], 0
-    for i, d in enumerate(reversed(str(b))):
-        part = a * int(d) * 10 ** i
-        total += part
-        shift = f" (×{10 ** i:,})" if i else ""
-        steps.append(f"{a} × {d}{shift} = {part:,}")
-    steps.append(f"부분 곱을 모두 더하면 → {total:,}")
-    return steps
-
-
-def div_steps(a: int, b: int) -> list[str]:
-    if b == 0:
-        return ["0으로는 나눌 수 없습니다"]
-    steps, rem, q = [], 0, ""
-    for ch in str(a):
-        cur = rem * 10 + int(ch)
-        d = cur // b
-        steps.append(f"내려쓴 수 {cur} ÷ {b} = 몫 {d}, 나머지 {cur - d * b}")
-        q += str(d)
-        rem = cur - d * b
-    steps.append(f"몫 = {int(q):,}, 나머지 = {rem}")
-    return steps
-
-
-def step_mode(a: int, b: int, op: str, answer) -> None:
-    print("\n[③ 단계별 풀이 모드] 생각을 적어 가며 계산합니다")
-    fn = {"+": add_steps, "-": sub_steps, "*": mul_steps, "/": div_steps}[op]
-    for line in fn(a, b):
-        print("  ·", line)
-    if answer is not None:
-        print(f"  ✅ 최종 답: {answer:,}")
-
-
-# ---------- 메인 ----------
-def parse(text: str):
-    """'478 + 256' 형태의 입력을 (a, op, b)로 변환"""
-    text = text.replace("×", "*").replace("÷", "/").replace("x", "*")
-    for op in "+-*/":
-        # 맨 앞 부호와 구분하기 위해 1번째 글자 이후에서 찾음
-        idx = text.find(op, 1)
-        if idx != -1:
-            a, b = text[:idx].strip(), text[idx + 1:].strip()
-            if a.isdigit() and b.isdigit():
-                return int(a), op, int(b)
-    raise ValueError("형식이 올바르지 않습니다. 예) 478 + 256")
-
-
-def main() -> None:
-    print("=== AI처럼 계산하는 계산기 ===")
-    print("예) 478 + 256 / 1234 * 56   (종료: q)")
-    while True:
-        text = input("\n식 입력 > ").strip()
-        if text.lower() in ("q", "quit", "exit"):
-            print("종료합니다.")
-            break
-        try:
-            a, op, b = parse(text)
-        except ValueError as e:
-            print("  ⚠", e)
-            continue
-
-        print(f"\n[① 토큰화] {tokenize(a)} {op} {tokenize(b)}")
-        print("  AI는 숫자를 한 덩어리가 아니라 이런 조각으로 읽습니다.")
-
-        answer = exact(a, b, op)
-        if answer is None:
-            print("  ⚠ 0으로는 나눌 수 없습니다.")
-            continue
-        intuition_mode(answer)
-        step_mode(a, b, op, answer)
-
-
-if __name__ == "__main__":
-    main()
+8. `mac()`은 N×N 이중 반복문에서 곱셈과 덧셈을 한 번씩 수행하므로 연산 횟수는 N²입니다. 시간 복잡도는 **O(N²)** 입니다.
+9. 성능 표에서 3×3(9회)에서 25×25(625회)로 연산 횟수가 약 69배 늘면 평균 시간도 비슷한 비율로 늘어야 합니다. 측정값을 이 비율과 비교해 적습니다.
+10. 한 변의 길이가 2배가 되면 연산량은 4배가 됩니다 (예: 13 → 25는 약 1.9배, 연산량은 약 3.7배).
+11. 크기가 작을 때는 함수 호출 오버헤드가 차지하는 비중이 커서 시간이 N²에 정확히 비례하지 않을 수 있습니다. 크기가 커질수록 N²에 가까워집니다.
+12. 실제 AI 모델은 이 연산을 수천 개의 필터에 대해 반복하므로 직렬 처리 CPU로는 느립니다. 그래서 MAC를 병렬로 처리하는 NPU가 필요합니다.

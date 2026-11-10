@@ -29,7 +29,7 @@
 
 ### 1. 저장소 클론 (Clone Repository)
 ```bash
-git clone [https://github.com/your-username/ai-reasoning-calculator.git](https://github.com/your-username/ai-reasoning-calculator.git)
+git clone [https://github.com/cym90/ai-reasoning-calculator.git](https://github.com/your-username/ai-reasoning-calculator.git)
 cd ai-reasoning-calculator
 
 

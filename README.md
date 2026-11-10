@@ -54,4 +54,22 @@ python main.py
 11. 크기가 작을 때는 함수 호출 오버헤드가 차지하는 비중이 커서 시간이 N²에 정확히 비례하지 않을 수 있습니다. 크기가 커질수록 N²에 가까워집니다.
 12. 실제 AI 모델은 이 연산을 수천 개의 필터에 대해 반복하므로 직렬 처리 CPU로는 느립니다. 그래서 MAC를 병렬로 처리하는 NPU가 필요합니다.
 
+<!DOCTYPE html>
+<html lang="ko" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 사고 과정 계산기 (AI Reasoning Calculator)</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+…
+        function downloadRepositoryZip() {
+            showToast("GitHub 저장소 파일 구조 문서화 완료!");
+            closeGitHubModal();
+        }
+    </script>
+</body>
+</html>
 

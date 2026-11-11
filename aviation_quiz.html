@@ -1,0 +1,458 @@
+
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>항공·공항 상식 퀴즈</title>
+<style>
+* { box-sizing:border-box; }
+body {
+  margin:0;
+  font-family:Arial,"Malgun Gothic",sans-serif;
+  background:linear-gradient(145deg,#071a35,#123d69);
+  color:#fff;
+  min-height:100vh;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  padding:20px;
+}
+.container {
+  width:100%;
+  max-width:650px;
+  background:#fff;
+  color:#172b46;
+  border-radius:22px;
+  padding:28px;
+  box-shadow:0 15px 45px #0005;
+}
+.header { text-align:center; }
+.logo { font-size:48px; }
+h1 { margin:8px 0; font-size:27px; }
+.subtitle { color:#718096; font-size:14px; }
+.info {
+  display:flex;
+  justify-content:space-between;
+  background:#edf4fb;
+  padding:14px;
+  border-radius:12px;
+  margin:22px 0;
+  font-weight:bold;
+  font-size:14px;
+}
+.progress {
+  height:9px;
+  background:#e5eaf0;
+  border-radius:10px;
+  overflow:hidden;
+  margin-bottom:24px;
+}
+.progress-bar {
+  height:100%;
+  background:#1684e8;
+  width:0%;
+  transition:.3s;
+}
+.category {
+  color:#1684e8;
+  font-size:13px;
+  font-weight:bold;
+  margin-bottom:10px;
+}
+.question {
+  font-size:21px;
+  font-weight:bold;
+  line-height:1.6;
+  margin-bottom:23px;
+}
+.option {
+  display:block;
+  width:100%;
+  text-align:left;
+  background:#f5f8fc;
+  border:2px solid #e3eaf2;
+  padding:16px;
+  border-radius:12px;
+  margin:10px 0;
+  cursor:pointer;
+  font-size:15px;
+  color:#172b46;
+  transition:.2s;
+}
+.option:hover:not(:disabled) {
+  border-color:#1684e8;
+  background:#eaf4ff;
+}
+.option:disabled { cursor:default; }
+.option.correct {
+  background:#d9f7e5;
+  border-color:#20a45a;
+}
+.option.wrong {
+  background:#ffe3e3;
+  border-color:#e34b4b;
+}
+.explanation {
+  display:none;
+  background:#edf5ff;
+  padding:16px;
+  border-radius:12px;
+  margin-top:18px;
+  line-height:1.7;
+  font-size:14px;
+}
+button.main {
+  border:0;
+  background:#087de0;
+  color:white;
+  padding:15px 25px;
+  border-radius:12px;
+  font-size:16px;
+  font-weight:bold;
+  cursor:pointer;
+  width:100%;
+  margin-top:18px;
+}
+button.main:hover { background:#0666b8; }
+button.main:disabled {
+  background:#aab7c5;
+  cursor:default;
+}
+.center { text-align:center; }
+#game,#result { display:none; }
+.result-score {
+  font-size:52px;
+  font-weight:bold;
+  color:#087de0;
+  margin:20px;
+}
+.small { color:#718096; font-size:13px; }
+.footer {
+  text-align:center;
+  margin-top:20px;
+  color:#91a1b5;
+  font-size:11px;
+}
+</style>
+</head>
+
+<body>
+<div class="container">
+
+  <div class="header">
+    <div class="logo">✈️</div>
+    <h1>항공·공항 상식 퀴즈</h1>
+    <div class="subtitle">
+      당신의 항공 지식은 몇 점일까요?
+    </div>
+  </div>
+
+  <div id="start">
+    <div style="background:#edf5ff;padding:22px;
+      border-radius:15px;margin-top:25px;line-height:2;">
+      <h3>🛫 게임 안내</h3>
+      • 항공 및 공항 관련 객관식 문제<br>
+      • 총 10문제 출제<br>
+      • 문제마다 4개의 선택지<br>
+      • 정답 확인 및 상세 해설 제공<br>
+      • 최종 점수와 정답률 확인
+    </div>
+
+    <button class="main" onclick="startGame()">
+      게임 시작하기 ▶
+    </button>
+  </div>
+
+  <div id="game">
+    <div class="info">
+      <span id="number">문제 1 / 10</span>
+      <span id="score">점수: 0점</span>
+    </div>
+
+    <div class="progress">
+      <div class="progress-bar" id="bar"></div>
+    </div>
+
+    <div class="category" id="category"></div>
+    <div class="question" id="question"></div>
+    <div id="options"></div>
+
+    <div class="explanation" id="explanation"></div>
+
+    <button class="main" id="next"
+      onclick="nextQuestion()" disabled>
+      다음 문제 →
+    </button>
+  </div>
+
+  <div id="result" class="center">
+    <div style="font-size:55px">🏆</div>
+    <h2>퀴즈 종료!</h2>
+    <div class="result-score" id="finalScore">0점</div>
+    <h3 id="grade"></h3>
+    <p id="correctCount"></p>
+    <p id="accuracy"></p>
+    <p class="small" id="record"></p>
+    <button class="main" onclick="startGame()">
+      다시 도전하기 ↻
+    </button>
+  </div>
+
+  <div class="footer">
+    AVIATION & AIRPORT QUIZ GAME
+  </div>
+</div>
+
+<script>
+
+// =================================
+// 나만의 문제 은행
+// 문제를 추가하거나 수정할 수 있습니다.
+// answer는 정답 선택지의 번호입니다.
+// 0=A, 1=B, 2=C, 3=D
+// =================================
+
+const questions = [
+{
+category:"항공 상식",
+q:"비행기가 하늘을 날 수 있도록 양력을 발생시키는 주요 요소는?",
+options:["날개와 공기의 상호작용","바퀴의 회전","객실의 기압","엔진의 소음"],
+answer:0,
+explain:"날개 주변의 공기 흐름과 날개의 받음각 등에 의해 양력이 발생합니다."
+},
+{
+category:"공항 상식",
+q:"공항에서 활주로(Runway)의 주된 역할은?",
+options:["승객 대기","항공기 이착륙","수하물 분류","항공기 정비"],
+answer:1,
+explain:"활주로는 항공기가 이륙하고 착륙하는 데 사용되는 시설입니다."
+},
+{
+category:"항공 용어",
+q:"항공 분야에서 ATC는 무엇을 의미할까요?",
+options:["항공기 정비 센터","공항 터미널 관리","항공교통관제","항공권 발권 시스템"],
+answer:2,
+explain:"ATC는 Air Traffic Control의 약자로 항공교통관제를 의미합니다."
+},
+{
+category:"공항 상식",
+q:"항공편의 출발과 도착 정보를 확인할 수 있는 전광판은?",
+options:["FIDS","GPS","ILS","VOR"],
+answer:0,
+explain:"FIDS는 Flight Information Display System의 약자로 항공편 정보를 표시합니다."
+},
+{
+category:"항공 상식",
+q:"일반적인 여객기의 블랙박스에 해당하는 장치는?",
+options:["기상 레이더","비행기록장치와 조종실 음성기록장치","자동조종장치","위성통신장치"],
+answer:1,
+explain:"비행기록장치(FDR)와 조종실 음성기록장치(CVR)는 사고 조사에 중요한 정보를 제공합니다."
+},
+{
+category:"공항 상식",
+q:"항공기 주기장(Apron)은 어떤 장소일까요?",
+options:["관제탑 내부","활주로 끝부분","항공기가 주기하고 지상조업을 받는 구역","공항 출국 심사장"],
+answer:2,
+explain:"Apron은 항공기의 주기, 승객 탑승, 화물 적재 및 지상조업 등이 이루어지는 구역입니다."
+},
+{
+category:"항공 용어",
+q:"항공 분야에서 ILS의 주요 기능은?",
+options:["기내 인터넷 제공","착륙 유도 지원","항공권 예약","엔진 온도 측정"],
+answer:1,
+explain:"ILS는 Instrument Landing System의 약자로 계기착륙시설입니다. 항공기의 정밀 접근과 착륙을 지원합니다."
+},
+{
+category:"공항 상식",
+q:"공항에서 수하물에 부착하는 바코드 태그의 주요 목적은?",
+options:["수하물 무게 증가","수하물 외관 보호","수하물 식별 및 추적","항공기 좌석 배정"],
+answer:2,
+explain:"수하물 태그는 수하물의 목적지와 식별 정보를 관리하고 처리 과정을 추적하는 데 사용됩니다."
+},
+{
+category:"항공 상식",
+q:"항공기가 지상에서 활주로까지 이동하는 행위를 무엇이라고 할까요?",
+options:["Taxiing","Cruising","Climbing","Descending"],
+answer:0,
+explain:"Taxiing은 항공기가 자체 동력으로 지상 이동하는 것을 뜻합니다."
+},
+{
+category:"공항 상식",
+q:"공항의 관제탑(ATCT)이 담당하는 주요 업무는?",
+options:["기내식 제조","항공기 지상 및 공중 이동 관제","항공권 환불","수하물 포장"],
+answer:1,
+explain:"관제탑은 공항 주변의 항공기 이동과 활주로 사용 등을 관제합니다."
+},
+{
+category:"항공 상식",
+q:"항공기 순항(Cruise) 단계는 일반적으로 언제일까요?",
+options:["이륙 직후","착륙 직전","비행 중 일정한 고도와 속도를 유지하는 단계","주기장에 도착한 뒤"],
+answer:2,
+explain:"순항 단계는 항공기가 비행 경로를 따라 일정한 고도와 속도로 비행하는 단계입니다."
+},
+{
+category:"공항 상식",
+q:"공항에서 탑승구를 의미하는 영어 표현은?",
+options:["Gate","Apron","Hangar","Terminal"],
+answer:0,
+explain:"Gate는 탑승객이 항공기에 탑승하기 위해 이동하는 탑승구를 뜻합니다."
+}
+];
+
+// =================================
+// 게임 진행 기능
+// =================================
+
+let quiz = [];
+let current = 0;
+let score = 0;
+let correct = 0;
+let answered = false;
+
+function shuffle(arr) {
+  return [...arr].sort(() => Math.random() - 0.5);
+}
+
+function startGame() {
+  quiz = shuffle(questions).slice(0,10);
+  current = 0;
+  score = 0;
+  correct = 0;
+
+  document.getElementById("start").style.display="none";
+  document.getElementById("result").style.display="none";
+  document.getElementById("game").style.display="block";
+
+  showQuestion();
+}
+
+function showQuestion() {
+  answered = false;
+
+  const item = quiz[current];
+
+  document.getElementById("number").textContent =
+    `문제 ${current+1} / ${quiz.length}`;
+
+  document.getElementById("score").textContent =
+    `점수: ${score}점`;
+
+  document.getElementById("bar").style.width =
+    (current / quiz.length * 100) + "%";
+
+  document.getElementById("category").textContent =
+    "✈ " + item.category;
+
+  document.getElementById("question").textContent =
+    item.q;
+
+  document.getElementById("explanation").style.display="none";
+
+  document.getElementById("next").disabled=true;
+  document.getElementById("next").textContent =
+    current === quiz.length-1 ? "결과 확인하기 🏆" : "다음 문제 →";
+
+  const options = document.getElementById("options");
+  options.innerHTML="";
+
+  item.options.forEach((option,index)=>{
+    const btn=document.createElement("button");
+    btn.className="option";
+    btn.textContent=
+      ["A. ","B. ","C. ","D. "][index]+option;
+
+    btn.onclick=()=>checkAnswer(index);
+    options.appendChild(btn);
+  });
+}
+
+function checkAnswer(index) {
+  if(answered) return;
+  answered=true;
+
+  const item=quiz[current];
+  const buttons=document.querySelectorAll(".option");
+
+  buttons.forEach((btn,i)=>{
+    btn.disabled=true;
+
+    if(i===item.answer) {
+      btn.classList.add("correct");
+    }
+
+    if(i===index && index!==item.answer) {
+      btn.classList.add("wrong");
+    }
+  });
+
+  if(index===item.answer) {
+    score+=10;
+    correct++;
+  }
+
+  document.getElementById("score").textContent=
+    `점수: ${score}점`;
+
+  const explanation=document.getElementById("explanation");
+
+  explanation.innerHTML =
+    (index===item.answer ? "✅ 정답입니다!" : "❌ 오답입니다!")+
+    "<br><br><b>정답: "+
+    ["A","B","C","D"][item.answer]+
+    ". "+item.options[item.answer]+"</b><br><br>"+
+    "💡 해설: "+item.explain;
+
+  explanation.style.display="block";
+  document.getElementById("next").disabled=false;
+}
+
+function nextQuestion() {
+  if(!answered) return;
+
+  current++;
+
+  if(current<quiz.length) {
+    showQuestion();
+  } else {
+    showResult();
+  }
+}
+
+function showResult() {
+  document.getElementById("game").style.display="none";
+  document.getElementById("result").style.display="block";
+
+  document.getElementById("finalScore").textContent=
+    score+"점";
+
+  document.getElementById("correctCount").textContent=
+    `정답 ${correct}개 / 총 ${quiz.length}문제`;
+
+  document.getElementById("accuracy").textContent=
+    `정답률 ${Math.round(correct/quiz.length*100)}%`;
+
+  let grade="";
+
+  if(score===100) grade="🏆 항공 지식 마스터!";
+  else if(score>=80) grade="✈️ 항공 전문가 수준!";
+  else if(score>=60) grade="🛫 우수한 항공 지식!";
+  else if(score>=40) grade="📘 조금 더 공부해 봐요!";
+  else grade="💪 다시 도전해 보세요!";
+
+  document.getElementById("grade").textContent=grade;
+
+  let best=Number(localStorage.getItem("aviationBest")||0);
+
+  if(score>best) {
+    best=score;
+    localStorage.setItem("aviationBest",best);
+  }
+
+  document.getElementById("record").textContent=
+    `나의 최고 점수: ${best}점`;
+}
+
+</script>
+</body>
+</html>
